@@ -1,0 +1,57 @@
+---
+title: "I_score_code"
+author: "Michael"
+date: "2025-06-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(pROC)
+library(purrr)
+library(tibble)
+library(combinat)  # or use base combn
+library(parallel)
+library(data.table)
+
+```
+
+##1. Setup I score function
+
+```{r pressure, echo=FALSE}
+# I-score calculation function
+compute_I_score <- function(df, snp_cols, outcome_col) {
+  # Create cell ID for each row
+  cell_id <- if (length(snp_cols) == 1) {
+  as.character(df[[snp_cols]])
+} else {
+  apply(df[, snp_cols], 1, paste, collapse = "_")
+}
+  
+  # Add outcome and cell to temp df
+  temp_df <- data.frame(Y = df[[outcome_col]], cell = cell_id)
+  
+  # Compute per-cell statistics
+  cell_summary <- temp_df %>%
+    group_by(cell) %>%
+    summarise(
+      n_j = n(),
+      Y_j = mean(Y),
+      .groups = "drop"
+    )
+  
+  # Overall mean and variance
+  Y_bar <- mean(temp_df$Y)
+  s2_total <- sum((temp_df$Y - Y_bar)^2)  # Denominator from the paper
+
+  # Numerator based on refined formula
+  numerator <- sum((cell_summary$n_j^2) * (cell_summary$Y_j - Y_bar)^2)
+
+  # Final I score
+  I_score <- numerator / s2_total
+  return(I_score)
+}
+
+```
+
+
